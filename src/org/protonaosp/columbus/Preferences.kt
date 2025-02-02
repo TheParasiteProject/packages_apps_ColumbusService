@@ -82,3 +82,9 @@ fun SharedPreferences.getHapticIntensity(context: Context): String {
     return getString(context.getString(R.string.pref_key_haptic_intensity), haptic_default)
         ?: haptic_default
 }
+
+fun SharedPreferences.getHapticIntensityEntry(context: Context): String {
+    val hapticEntries = context.resources.getStringArray(R.array.pref_haptic_intensity_entries)
+    val hapticValues = context.resources.getStringArray(R.array.pref_haptic_intensity_values)
+    return hapticEntries[hapticValues.indexOf(getHapticIntensity(context))]
+}
