@@ -15,31 +15,23 @@ class PowerSaveState(context: Context, handler: Handler) : Gate(context, handler
         context.getSystemService(Context.POWER_SERVICE) as PowerManager
     private val powerReceiver =
         object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent ?: return
                 refreshStatus()
             }
         }
 
     fun refreshStatus() {
-        val state: android.os.PowerSaveState =
-            powerManager.getPowerSaveState(PowerManager.ServiceType.OPTIONAL_SENSORS)
-        batterySaverEnabled =
-            if (powerManager == null || state == null) {
-                false
-            } else {
-                state.batterySaverEnabled
-            }
-        isDeviceInteractive =
-            if (powerManager == null) {
-                false
-            } else {
-                powerManager.isInteractive()
-            }
+        val state = powerManager.getPowerSaveState(PowerManager.ServiceType.OPTIONAL_SENSORS)
+        batterySaverEnabled = state?.batterySaverEnabled ?: false
+
+        isDeviceInteractive = powerManager.isInteractive()
+
         setBlocking(batterySaverEnabled && !isDeviceInteractive)
     }
 
     override fun onActivate() {
-        val intentFilter: IntentFilter =
+        val intentFilter =
             IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED).apply {
                 addAction(Intent.ACTION_SCREEN_ON)
                 addAction(Intent.ACTION_SCREEN_OFF)
