@@ -16,37 +16,13 @@
 
 package org.protonaosp.columbus.settings
 
-import android.content.ComponentName
-import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
 import android.os.Bundle
-import android.os.IBinder
 import com.android.settingslib.collapsingtoolbar.CollapsingToolbarBaseActivity
-import org.protonaosp.columbus.ColumbusService
 
 class SettingsActivity : CollapsingToolbarBaseActivity() {
-    private var columbusService: ColumbusService? = null
-    private var isBound = false
-
-    private val connection =
-        object : ServiceConnection {
-            override fun onServiceConnected(className: ComponentName, service: IBinder) {
-                val binder = service as ColumbusService.Binder
-                columbusService = binder.getService()
-                columbusService?.isSettingsActivityOnTop = true
-            }
-
-            override fun onServiceDisconnected(arg0: ComponentName) {
-                columbusService?.isSettingsActivityOnTop = false
-                columbusService = null
-            }
-        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        columbusService?.isSettingsActivityOnTop = true
 
         supportFragmentManager
             .beginTransaction()
@@ -55,22 +31,5 @@ class SettingsActivity : CollapsingToolbarBaseActivity() {
                 SettingsFragment(),
             )
             .commit()
-    }
-
-    override fun onResume() {
-        super.onResume()
-        Intent(this, ColumbusService::class.java).also { intent ->
-            isBound = bindService(intent, connection, Context.BIND_AUTO_CREATE)
-        }
-        columbusService?.isSettingsActivityOnTop = true
-    }
-
-    override fun onPause() {
-        super.onPause()
-        columbusService?.isSettingsActivityOnTop = false
-        if (isBound) {
-            unbindService(connection)
-            isBound = false
-        }
     }
 }

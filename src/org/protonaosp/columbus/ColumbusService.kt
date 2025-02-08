@@ -31,7 +31,6 @@ import android.os.VibrationEffect
 import android.os.Vibrator
 import android.os.VibratorManager
 import android.util.Log
-import android.widget.Toast
 import org.protonaosp.columbus.actions.*
 import org.protonaosp.columbus.gates.*
 import org.protonaosp.columbus.sensors.APSensor
@@ -50,12 +49,12 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
     private lateinit var controller: ColumbusController
     private lateinit var handler: Handler
     private lateinit var wakelock: PowerManager.WakeLock
+    private lateinit var settingsGate: Settings
     private var gates = setOf<Gate>()
-    var isSettingsActivityOnTop: Boolean = false
     private val binder = Binder()
 
     // State
-    private var screenRegistered = false
+    private var screenCallbackRegistered = false
 
     // Settings
     private var enabled = true
@@ -94,12 +93,14 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
         }
         controller = ColumbusController(this, sensor, handler)
         controller.setGestureListener(columbusControllerListener)
+        settingsGate = Settings(this, handler)
         gates =
             setOf(
                 TelephonyActivity(this, handler),
                 VrMode(this, handler),
                 PocketDetection(this, handler),
                 TableDetection(this, handler),
+                settingsGate,
             )
 
         updateHapticIntensity()
@@ -117,9 +118,9 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
         prefs.unregisterOnSharedPreferenceChangeListener(this)
 
         // Only unregister if we previously registered
-        if (screenRegistered) {
+        if (screenCallbackRegistered) {
             unregisterReceiver(screenCallback)
-            screenRegistered = false
+            screenCallbackRegistered = false
         }
 
         // Cleanup gates
@@ -134,6 +135,8 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
         if (wakelock.isHeld) {
             wakelock.release()
         }
+
+        unregisterScreenCallback()
 
         // Clear references
         action = DummyAction(this)
@@ -186,41 +189,45 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
 
     private fun updateEnabled() {
         enabled = prefs.getEnabled(this)
-        if (!enabled) {
-            Log.d(TAG, "Disabling gesture by pref")
+        if (enabled) {
+            Log.d(TAG, "Enabling gesture")
+            activateGates()
+            if (blockingGate()) {
+                disableGesture()
+            } else {
+                enableGesture()
+            }
+        } else {
+            Log.d(TAG, "Disabling gesture")
             deactivateGates()
             disableGesture()
-            return
-        }
-        Log.d(TAG, "Enabling gesture by pref")
-        activateGates()
-        if (blockingGate()) {
-            disableGesture()
-        } else {
-            enableGesture()
         }
     }
 
     private fun updateScreenCallback() {
         val allowScreenOff = prefs.getAllowScreenOff(this)
+        val shouldListenForScreenEvents = !allowScreenOff || !action.canRunWhenScreenOff()
 
-        // Listen if either condition *can't* run when screen is off
-        if (!allowScreenOff || !action.canRunWhenScreenOff()) {
+        if (shouldListenForScreenEvents && !screenCallbackRegistered) {
             val filter =
                 IntentFilter().apply {
                     addAction(Intent.ACTION_SCREEN_ON)
                     addAction(Intent.ACTION_SCREEN_OFF)
                 }
-
-            if (!screenRegistered) {
-                Log.d(TAG, "Listening to screen on/off events")
-                registerReceiver(screenCallback, filter)
-                screenRegistered = true
-            }
-        } else if (screenRegistered) {
+            Log.d(TAG, "Listening to screen on/off events")
+            registerReceiver(screenCallback, filter)
+            screenCallbackRegistered = true
+        } else if (!shouldListenForScreenEvents && screenCallbackRegistered) {
             Log.d(TAG, "Stopped listening to screen on/off events")
             unregisterReceiver(screenCallback)
-            screenRegistered = false
+            screenCallbackRegistered = false
+        }
+    }
+
+    private fun unregisterScreenCallback() {
+        if (screenCallbackRegistered) {
+            unregisterReceiver(screenCallback)
+            screenCallbackRegistered = false
         }
     }
 
@@ -275,18 +282,21 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
         if (msg != 1) return
 
         wakelock.acquire(2000L)
+        try {
+            if (!action.canRun()) return
 
-        if (isSettingsActivityOnTop) {
+            if (settingsGate.isBlocking() && settingsGate.handleGesture()) {
+                vibrator.vibrate(vibDoubleTap, sonicAudioAttr)
+                return
+            }
+
             vibrator.vibrate(vibDoubleTap, sonicAudioAttr)
-            Toast.makeText(this, R.string.gesture_detected, Toast.LENGTH_SHORT).show()
-            return
+            action.run()
+        } finally {
+            if (wakelock.isHeld) {
+                wakelock.release()
+            }
         }
-
-        if (!action.canRun()) return
-
-        vibrator.vibrate(vibDoubleTap, sonicAudioAttr)
-
-        action.run()
     }
 
     private val columbusControllerListener =
@@ -305,27 +315,24 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
     }
 
     private fun blockingGate(): Boolean {
-        for (it in gates) {
-            if (it.isBlocking()) {
-                Log.d(TAG, "Blocked by gate")
-                return true
-            }
-        }
-        return false
+        return gates.any { it.isBlocking() }
     }
 
     private val gateListener =
         object : Gate.Listener {
             override fun onGateChanged(gate: Gate) {
-                updateEnabled()
+                if (enabled) {
+                    updateEnabled()
+                }
             }
         }
 
     private val screenCallback =
         object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                intent ?: return
                 if (enabled) {
-                    when (intent?.action) {
+                    when (intent.action) {
                         Intent.ACTION_SCREEN_ON -> {
                             Log.d(TAG, "Enabling gesture due to screen on")
                             updateEnabled()
