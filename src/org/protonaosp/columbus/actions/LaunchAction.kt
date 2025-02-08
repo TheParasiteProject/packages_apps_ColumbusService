@@ -17,7 +17,7 @@ class LaunchAction(context: Context) : Action(context) {
     override fun canRunWhenScreenOff() = false
 
     private fun launchApp() {
-        val prefs = context!!.getDePrefs()
+        val prefs = context.getDePrefs()
 
         val packageName: String = prefs.getLaunchActionApp(context)
         val activity: String = prefs.getLaunchActionAppShortcut(context)
@@ -27,7 +27,7 @@ class LaunchAction(context: Context) : Action(context) {
 
         val intent: Intent? =
             if (launchActivity) {
-                    Intent(Intent.ACTION_MAIN)?.apply { setClassName(packageName, activity) }
+                    Intent(Intent.ACTION_MAIN).apply { setClassName(packageName, activity) }
                 } else {
                     context.packageManager.getLaunchIntentForPackage(packageName)
                 }
