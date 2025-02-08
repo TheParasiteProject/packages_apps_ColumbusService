@@ -33,9 +33,9 @@ class CHRESensor(val context: Context, var sensitivity: Float, val handler: Hand
                 MessageType.GESTURE_DETECTED.id -> {
                     val detectedMsg =
                         ContextHubMessages.GestureDetected.parseFrom(msg.messageBody).gestureType
-                    val msg = protoGestureTypeToGesture(detectedMsg)
-                    if (msg == 0) return
-                    handler.post { reportGestureDetected(msg) }
+                    val gestureMsg = protoGestureTypeToGesture(detectedMsg)
+                    if (gestureMsg == 0) return
+                    handler.post { reportGestureDetected(gestureMsg) }
                 }
 
                 // Fallback for other unexpected messages
