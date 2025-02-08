@@ -98,7 +98,7 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
             setOf(
                 TelephonyActivity(this, handler),
                 VrMode(this, handler),
-                PocketDetectionGate(this, handler),
+                PocketDetection(this, handler),
                 TableDetectionGate(this, handler),
             )
 
