@@ -33,10 +33,10 @@ import org.protonaosp.columbus.getActionName
 import org.protonaosp.columbus.getAllowScreenOff
 import org.protonaosp.columbus.getDePrefs
 import org.protonaosp.columbus.getEnabled
-import org.protonaosp.columbus.getLaunchActionAppName
-import org.protonaosp.columbus.getSensitivity
 import org.protonaosp.columbus.getHapticIntensity
 import org.protonaosp.columbus.getHapticIntensityEntry
+import org.protonaosp.columbus.getLaunchActionAppName
+import org.protonaosp.columbus.getSensitivity
 
 class SettingsFragment :
     PreferenceFragmentCompat(), SharedPreferences.OnSharedPreferenceChangeListener {
