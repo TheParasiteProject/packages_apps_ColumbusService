@@ -100,7 +100,6 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
                 VrMode(this, handler),
                 PocketDetection(this, handler),
                 TableDetection(this, handler),
-                settingsGate,
             )
 
         updateHapticIntensity()
@@ -285,12 +284,10 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
         try {
             if (!action.canRun()) return
 
+            vibrator.vibrate(vibDoubleTap, sonicAudioAttr)
             if (settingsGate.isBlocking() && settingsGate.handleGesture()) {
-                vibrator.vibrate(vibDoubleTap, sonicAudioAttr)
                 return
             }
-
-            vibrator.vibrate(vibDoubleTap, sonicAudioAttr)
             action.run()
         } finally {
             if (wakelock.isHeld) {
@@ -307,10 +304,12 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
         }
 
     private fun activateGates() {
+        settingsGate.registerListener(gateListener)
         gates.forEach { it.registerListener(gateListener) }
     }
 
     private fun deactivateGates() {
+        settingsGate.unregisterListener(gateListener)
         gates.forEach { it.unregisterListener(gateListener) }
     }
 
