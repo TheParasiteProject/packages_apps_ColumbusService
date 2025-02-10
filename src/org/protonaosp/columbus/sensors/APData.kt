@@ -35,10 +35,10 @@ fun getModelFileName(context: Context): String {
 fun getApSensorThrottleMs(context: Context): Long =
     context.resources.getInteger(R.integer.default_apsensor_throttle_ms).toLong()
 
-class Point3f(var x: Float, var y: Float, var z: Float)
+data class Point3f(var x: Float, var y: Float, var z: Float)
 
 class Highpass1C {
-    var para: Float = 1.0f
+    var _para: Float = 1.0f
     var lastX: Float = 0.0f
     var lastY: Float = 0.0f
 
@@ -48,11 +48,11 @@ class Highpass1C {
     }
 
     fun update(update: Float): Float {
-        var updatedParam: Float = para
+        val updatedParam: Float = _para
         if (updatedParam == 1.0f) {
             return update
         }
-        var updatedY: Float = (lastY * updatedParam) + (updatedParam * (update - lastX))
+        val updatedY: Float = (lastY * updatedParam) + (updatedParam * (update - lastX))
         lastY = updatedY
         lastX = update
         return updatedY
@@ -70,11 +70,12 @@ class Highpass3C {
         highpassZ.init(point.z)
     }
 
-    fun setPara(param: Float) {
-        highpassX.para = param
-        highpassY.para = param
-        highpassZ.para = param
-    }
+    var para: Float = 1.0f
+        set(value) {
+            highpassX._para = value
+            highpassY._para = value
+            highpassZ._para = value
+        }
 
     fun update(point: Point3f): Point3f {
         return Point3f(
@@ -86,19 +87,15 @@ class Highpass3C {
 }
 
 open class Lowpass1C {
-    var param: Float = 1.0f
+    var _para: Float = 1.0f
     var lastX: Float = 0.0f
 
     fun init(last: Float) {
         lastX = last
     }
 
-    open fun setPara(param: Float) {
-        this.param = param
-    }
-
     fun update(update: Float): Float {
-        var updatedParam: Float = param
+        var updatedParam: Float = _para
         if (updatedParam == 1.0f) {
             return update
         }
@@ -119,11 +116,12 @@ class Lowpass3C : Lowpass1C() {
         lowpassZ.init(point.z)
     }
 
-    override fun setPara(param: Float) {
-        lowpassX.setPara(param)
-        lowpassY.setPara(param)
-        lowpassZ.setPara(param)
-    }
+    var para: Float = 1.0f
+        set(value) {
+            lowpassX._para = value
+            lowpassY._para = value
+            lowpassZ._para = value
+        }
 
     fun update(point: Point3f): Point3f {
         return Point3f(lowpassX.update(point.x), lowpassY.update(point.y), lowpassZ.update(point.z))
@@ -132,6 +130,7 @@ class Lowpass3C : Lowpass1C() {
 
 class Sample3C(x: Float, y: Float, z: Float, var time: Long) {
     var point: Point3f = Point3f(x, y, z)
+        private set
 }
 
 open class Resample1C {

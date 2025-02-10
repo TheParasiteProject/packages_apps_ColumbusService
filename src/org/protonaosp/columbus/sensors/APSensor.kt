@@ -78,10 +78,10 @@ class APSensor(val context: Context, var sensitivity: Float, val handler: Handle
     override fun startListening() {
         callback.setListening(true, SensorManager.SENSOR_DELAY_FASTEST)
         (tap as? TapRT)?.run {
-            lowpassAcc.setPara(1.0f)
-            lowpassGyro.setPara(1.0f)
-            highpassAcc.setPara(0.05f)
-            highpassGyro.setPara(0.05f)
+            lowpassAcc.para = 1.0f
+            lowpassGyro.para = 1.0f
+            highpassAcc.para = 0.05f
+            highpassGyro.para = 0.05f
             positivePeakDetector.minNoiseTolerate = sensitivity
             positivePeakDetector.windowSize = 64
             negativePeakDetector.minNoiseTolerate = 0.015f

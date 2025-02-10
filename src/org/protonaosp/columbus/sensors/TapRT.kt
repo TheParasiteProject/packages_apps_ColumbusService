@@ -14,7 +14,7 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
     private val maxTimeGapNs: Long = 500000000L
     private val frameAlignPeak: Int = 12
     private val framePriorPeak: Int = 6
-    var result: Int = 0
+    var result: TapClass = TapClass.Front
     val positivePeakDetector: PeakDetector = PeakDetector()
     val negativePeakDetector: PeakDetector = PeakDetector()
     val timestampsBackTap: Deque<Long> = ArrayDeque()
@@ -25,10 +25,10 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
         sizeWindowNs = sizeWindowNsUpdate
         sizeFeatureWindow = 50
         numberFeature = 50 * 6
-        lowpassAcc.setPara(1.0f)
-        lowpassGyro.setPara(1.0f)
-        highpassAcc.setPara(0.05f)
-        highpassGyro.setPara(0.05f)
+        lowpassAcc.para = 1.0f
+        lowpassGyro.para = 1.0f
+        highpassAcc.para = 0.05f
+        highpassGyro.para = 0.05f
     }
 
     fun addToFeatureVector(points: ArrayDeque<Float>, max: Int, index: Int) {
@@ -91,7 +91,7 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
         if (accZs.size == interval) {
             recognizeTapHeuristic()
         }
-        if (result == TapClass.Back.ordinal) {
+        if (result == TapClass.Back) {
             timestampsBackTap.addLast(resampleAcc.results.time)
         }
     }
@@ -103,11 +103,10 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
             featureVector = ArrayList(accZs)
             result =
                 if (negativePeakId <= 0 || negativePeakId >= 3) {
-                        TapClass.Others
-                    } else {
-                        TapClass.Back
-                    }
-                    .ordinal
+                    TapClass.Others
+                } else {
+                    TapClass.Back
+                }
         }
     }
 
@@ -150,7 +149,7 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
         if (predict == null || predict.isEmpty()) {
             return
         }
-        result = Util.getMaxId(predict.get(0))
+        result = TapClass.values()[Util.getMaxId(predict[0])]
     }
 
     fun reset(clearFv: Boolean) {
@@ -179,7 +178,7 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
         rawLastT: Long,
         interval: Long,
     ) {
-        result = TapClass.Others.ordinal
+        result = TapClass.Others
         if (heuristicMode) {
             updateHeuristic(sensorType, rawLastX, rawLastY, rawLastZ, rawLastT, interval)
         } else {
@@ -198,15 +197,16 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
         if (sensorType == Sensor.TYPE_GYROSCOPE) {
             return
         }
-        if (0L != syncTime) {
-            while (resampleAcc.update(rawLastX, rawLastY, rawLastZ, rawLastT)) {
-                processKeySignalHeuristic()
-            }
-        } else {
+        if (0L == syncTime) {
             syncTime = rawLastT
             resampleAcc.init(rawLastX, rawLastY, rawLastZ, rawLastT, interval)
             resampleAcc.resampledLastT = syncTime
             slopeAcc.init(resampleAcc.results.point)
+            return
+        }
+
+        while (resampleAcc.update(rawLastX, rawLastY, rawLastZ, rawLastT)) {
+            processKeySignalHeuristic()
         }
     }
 
@@ -260,7 +260,7 @@ open class TapRT(val context: Context, val sizeWindowNsUpdate: Long, val heurist
                     updateGyro()
                     recognizeTapML()
                 }
-                if (result == TapClass.Back.ordinal) {
+                if (result == TapClass.Back) {
                     timestampsBackTap.addLast(rawLastT)
                 }
                 return

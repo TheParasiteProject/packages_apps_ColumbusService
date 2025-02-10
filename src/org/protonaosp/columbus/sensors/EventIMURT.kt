@@ -84,8 +84,8 @@ open class EventIMURT {
     }
 
     fun scaleGyroData(input: ArrayList<Float>, scale: Float): ArrayList<Float> {
-        for (size in (input.size / 2) until input.size) {
-            input.set(size, (input.get(size) * scale))
+        for (i in (input.size / 2) until input.size) {
+            input[i] = input[i] * scale
         }
         return input
     }
