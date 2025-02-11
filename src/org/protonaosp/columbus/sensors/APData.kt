@@ -21,7 +21,7 @@ fun useApSensor(context: Context): Boolean =
         !context.packageManager.hasSystemFeature("android.hardware.context_hub")
 
 fun getModelFileName(context: Context): String {
-    val model = context.getString(R.string.default_model)
+    val model = context.getString(R.string.default_model) ?: "quickTapBaseModel"
     return when (model) {
         "bramble",
         "coral",
