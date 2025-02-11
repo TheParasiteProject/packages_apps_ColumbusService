@@ -16,7 +16,8 @@ private const val NANOAPP_ID = 0x476f6f676c001019L
 
 class CHRESensor(val context: Context, var sensitivity: Float, val handler: Handler) :
     ColumbusSensor() {
-    private val contextHubManager = context.getSystemService("contexthub") as ContextHubManager
+    private val contextHubManager =
+        context.getSystemService(Context.CONTEXTHUB_SERVICE) as ContextHubManager
     private var isListening: Boolean = false
     private val callback: CHRECallback = CHRECallback()
 
@@ -30,7 +31,7 @@ class CHRESensor(val context: Context, var sensitivity: Float, val handler: Hand
             }
 
             when (msg.messageType) {
-                MessageType.GESTURE_DETECTED.id -> {
+                ContextHubMessages.GESTURE_DETECTED -> {
                     val detectedMsg =
                         ContextHubMessages.GestureDetected.parseFrom(msg.messageBody).gestureType
                     val gestureMsg = protoGestureTypeToGesture(detectedMsg)
@@ -57,10 +58,10 @@ class CHRESensor(val context: Context, var sensitivity: Float, val handler: Hand
                 // Only report events to AP if gesture is halfway done
                 msg.sensitivity = sensitivity
 
-                sendNanoappMsg(MessageType.RECOGNIZER_START.id, MessageNano.toByteArray(msg))
+                sendNanoappMsg(ContextHubMessages.RECOGNIZER_START, MessageNano.toByteArray(msg))
                 setListening(true)
             } else {
-                sendNanoappMsg(MessageType.RECOGNIZER_STOP.id, ByteArray(0))
+                sendNanoappMsg(ContextHubMessages.RECOGNIZER_STOP, ByteArray(0))
                 setListening(false)
             }
         }
@@ -68,7 +69,7 @@ class CHRESensor(val context: Context, var sensitivity: Float, val handler: Hand
         fun updateSensitivity() {
             val msg = ContextHubMessages.SensitivityUpdate()
             msg.sensitivity = sensitivity
-            sendNanoappMsg(MessageType.SENSITIVITY_UPDATE.id, MessageNano.toByteArray(msg))
+            sendNanoappMsg(ContextHubMessages.SENSITIVITY_UPDATE, MessageNano.toByteArray(msg))
         }
 
         private fun sendNanoappMsg(msgType: Int, bytes: ByteArray) {
