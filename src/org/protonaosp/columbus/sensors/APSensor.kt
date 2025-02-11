@@ -16,7 +16,7 @@ class APSensor(val context: Context, var sensitivity: Float, val handler: Handle
     val accelerometer = sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
     val gyroscope = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
     val heuristicMode = isHeuristicMode(context)
-    val tap: TapRT = TapRT(context, 153600000L, heuristicMode)
+    val tap: TapRT = TapRT(context, 153600000L)
     val callback: APCallback = APCallback()
     private var isListening: Boolean = false
 
@@ -48,6 +48,7 @@ class APSensor(val context: Context, var sensitivity: Float, val handler: Handle
                 evArr[2],
                 event.timestamp,
                 samplingIntervalNs,
+                heuristicMode,
             )
             val timing: Int = tap.checkDoubleTapTiming(event.timestamp)
             when (timing) {

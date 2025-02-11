@@ -1,6 +1,7 @@
 package org.protonaosp.columbus.sensors
 
 import android.content.Context
+import kotlin.math.max
 import org.protonaosp.columbus.R
 
 enum class TapClass {
@@ -21,7 +22,7 @@ fun useApSensor(context: Context): Boolean =
         !context.packageManager.hasSystemFeature("android.hardware.context_hub")
 
 fun getModelFileName(context: Context): String {
-    val model = context.getString(R.string.default_model) ?: "quickTapBaseModel"
+    val model = context.getString(R.string.default_model)
     return when (model) {
         "bramble",
         "coral",
@@ -261,26 +262,23 @@ class PeakDetector {
             reset()
         }
         noiseTolerate = minNoiseTolerate
-        var maxAmplitude: Float = Math.max(amplitude, lastZ) / 5f
-        if (maxAmplitude > minNoiseTolerate) {
+        var maxAmplitude: Float = max(amplitude, lastZ) / 5f
+        if (maxAmplitude > noiseTolerate) {
             noiseTolerate = maxAmplitude
         }
         var updatedAmRef: Float = amplitudeReference - lastZ
-        val savednoiseTolerate = noiseTolerate
         if (updatedAmRef < 0f) {
             amplitudeReference = lastZ
             gotNewHighValue = true
-            var updatedTsmp: Long = timestamp
             if (
-                (updatedTsmp == 0L ||
-                    (lastT - updatedTsmp < maxTapDuration && amplitude < lastZ)) &&
-                    lastZ >= savednoiseTolerate
+                (timestamp == 0L || (lastT - timestamp < maxTapDuration && amplitude < lastZ)) &&
+                    lastZ >= noiseTolerate
             ) {
                 peakId = windowSize - 1
                 amplitude = lastZ
                 timestamp = lastT
             }
-        } else if (updatedAmRef > savednoiseTolerate) {
+        } else if (updatedAmRef > noiseTolerate) {
             amplitudeReference = lastZ
             if (gotNewHighValue) {
                 numberPeak++

@@ -4,7 +4,7 @@ import java.util.ArrayDeque
 import java.util.ArrayList
 import org.protonaosp.columbus.actions.*
 
-open class EventIMURT(val _sizeWindowNs: Long, val numberFeature: Int, val sizeFeatureWindow: Int) {
+open class EventIMURT(val _sizeWindowNs: Long, val sizeFeatureWindow: Int, val numberFeature: Int) {
     var featureVector: ArrayList<Float> = arrayListOf<Float>()
     val accXs: ArrayDeque<Float> = ArrayDeque<Float>()
     val accYs: ArrayDeque<Float> = ArrayDeque<Float>()
@@ -45,7 +45,7 @@ open class EventIMURT(val _sizeWindowNs: Long, val numberFeature: Int, val sizeF
     }
 
     fun updateGyro() {
-        val sample = resampleAcc.results
+        val sample = resampleGyro.results
         var update: Point3f =
             highpassGyro.update(
                 lowpassGyro.update(
@@ -76,8 +76,9 @@ open class EventIMURT(val _sizeWindowNs: Long, val numberFeature: Int, val sizeF
     }
 
     fun scaleGyroData(input: ArrayList<Float>, scale: Float): ArrayList<Float> {
-        for (i in (input.size / 2) until input.size) {
-            input[i] = input[i] * scale
+        val size = input.size
+        for (i in (size / 2) until size) {
+            input[i] *= scale
         }
         return input
     }

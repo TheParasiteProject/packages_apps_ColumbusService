@@ -5,9 +5,10 @@ import android.hardware.Sensor
 import java.util.ArrayDeque
 import java.util.ArrayList
 import java.util.Deque
+import kotlin.math.max
 import org.protonaosp.columbus.actions.*
 
-open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode: Boolean) :
+open class TapRT(val context: Context, val sizeWindowNs: Long) :
     EventIMURT(sizeWindowNs, 50, 50 * 6) {
 
     private val minTimeGapNs: Long = 100000000L
@@ -30,10 +31,17 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
 
     fun addToFeatureVector(points: ArrayDeque<Float>, max: Int, index: Int) {
         var idx = index
-        var i = 0
-        for (point in points) {
-            if (i >= max && i < sizeFeatureWindow + max) {
-                featureVector[idx] = point
+        var i: Int = 0
+        var pIt = points.iterator()
+
+        while (pIt.hasNext()) {
+            if (i < max) {
+                pIt.next()
+            } else {
+                if (i >= sizeFeatureWindow + max) {
+                    return
+                }
+                featureVector[idx] = pIt.next()
                 idx++
             }
             i++
@@ -41,7 +49,7 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
     }
 
     fun checkDoubleTapTiming(timestamp: Long): Int {
-        var timestampFirst = timestampsBackTap.iterator()
+        val timestampFirst = timestampsBackTap.iterator()
         while (timestampFirst.hasNext()) {
             val storedTimestamp = timestampFirst.next()
             if (timestamp - storedTimestamp > maxTimeGapNs) {
@@ -53,10 +61,9 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
             return 0
         }
 
-        var lastTimestamp = timestampsBackTap.last()
-
         val timestampSecond = timestampsBackTap.iterator()
         while (timestampSecond.hasNext()) {
+            val lastTimestamp = timestampsBackTap.last()
             val storedTimestamp = timestampSecond.next()
             if (lastTimestamp - storedTimestamp > minTimeGapNs) {
                 timestampsBackTap.clear()
@@ -69,16 +76,21 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
 
     fun processKeySignalHeuristic() {
         val sample = resampleAcc.results
+        val samplePoint = sample.point
+        val sampleTime = sample.time
+        val sampleInterval = resampleAcc.interval
+
         var update: Point3f =
             highpassAcc.update(
-                lowpassAcc.update(
-                    slopeAcc.update(sample.point, 2400000f / resampleAcc.interval.toFloat())
-                )
+                lowpassAcc.update(slopeAcc.update(samplePoint, 2400000f / sampleInterval.toFloat()))
             )
-        positivePeakDetector.update(update.z.toFloat(), sample.time)
-        negativePeakDetector.update(-update.z.toFloat(), sample.time)
-        accZs.add(update.z.toFloat())
-        val interval: Int = (sizeWindowNs / resampleAcc.interval).toInt()
+        val updatedZ = update.z.toFloat()
+        positivePeakDetector.update(updatedZ, sampleTime)
+        negativePeakDetector.update(-updatedZ, sampleTime)
+
+        accZs.add(updatedZ)
+
+        val interval: Int = (sizeWindowNs / sampleInterval).toInt()
         while (accZs.size > interval) {
             accZs.removeFirst()
         }
@@ -86,14 +98,15 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
             recognizeTapHeuristic()
         }
         if (result == TapClass.Back) {
-            timestampsBackTap.addLast(sample.time)
+            timestampsBackTap.addLast(sampleTime)
         }
     }
 
     fun recognizeTapHeuristic() {
-        val positvePeakId: Int = positivePeakDetector.peakId
-        val negativePeakId: Int = negativePeakDetector.peakId - positvePeakId
-        if (positvePeakId == 4) {
+        val positivePeakId = positivePeakDetector.peakId
+        val negativePeakId = negativePeakDetector.peakId - positivePeakId
+
+        if (positivePeakId == 4) {
             featureVector = ArrayList(accZs)
             result =
                 if (negativePeakId > 0 && negativePeakId < 3) {
@@ -105,27 +118,31 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
     }
 
     fun recognizeTapML() {
-        var resultT: Int =
+        val resultT =
             ((resampleAcc.results.time - resampleGyro.results.time) / resampleAcc.interval).toInt()
-        var positvePeakMax: Int = Math.max(0, positivePeakDetector.peakId)
-        var negativePeakMax: Int = Math.max(0, negativePeakDetector.peakId)
+
+        var positivePeakMax = max(0, positivePeakDetector.peakId)
+        var negativePeakMax = max(0, negativePeakDetector.peakId)
+
         if (positivePeakDetector.amplitude <= negativePeakDetector.amplitude) {
-            positvePeakMax = negativePeakMax
+            positivePeakMax = negativePeakMax
         }
-        if (positvePeakMax > frameAlignPeak) {
+
+        if (positivePeakMax > frameAlignPeak) {
             wasPeakApproaching = true
         }
-        var accTuned: Int = positvePeakMax - framePriorPeak
-        var gyroTuned: Int = accTuned - resultT
-        var accSizeZ: Int = accZs.size
-        if (accTuned < 0 || gyroTuned < 0) {
-            return
-        }
+
+        val accTuned: Int = positivePeakMax - framePriorPeak
+        val gyroTuned: Int = accTuned - resultT
+        val accSizeZ: Int = accZs.size
+
         if (
-            accTuned + sizeFeatureWindow > accSizeZ ||
+            accTuned < 0 ||
+                gyroTuned < 0 ||
+                accTuned + sizeFeatureWindow > accSizeZ ||
                 sizeFeatureWindow + gyroTuned > accSizeZ ||
                 !wasPeakApproaching ||
-                positvePeakMax > frameAlignPeak
+                positivePeakMax > frameAlignPeak
         ) {
             return
         }
@@ -136,13 +153,16 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
         addToFeatureVector(gyroXs, gyroTuned, sizeFeatureWindow * 3)
         addToFeatureVector(gyroYs, gyroTuned, sizeFeatureWindow * 4)
         addToFeatureVector(gyroZs, gyroTuned, sizeFeatureWindow * 5)
-        var scaleGyroData: ArrayList<Float> = scaleGyroData(featureVector, 10f)
-        featureVector = scaleGyroData
-        var predict: ArrayList<ArrayList<Float>>? = tflite?.predict(scaleGyroData, 7)
-        if (predict == null || predict.isEmpty()) {
+        featureVector = scaleGyroData(featureVector, 10f)
+
+        val predict = tflite?.predict(featureVector, 7)
+
+        if (predict.isNullOrEmpty()) {
             return
         }
-        result = TapClass.values()[Util.getMaxId(predict[0])]
+
+        val maxId = Util.getMaxId(predict[0])
+        result = TapClass.values()[maxId]
     }
 
     fun reset(clearFv: Boolean) {
@@ -159,8 +179,9 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
 
     fun updateAccAndPeakDetectors() {
         updateAcc()
-        positivePeakDetector.update(accZs.last().toFloat(), resampleAcc.results.time)
-        negativePeakDetector.update(-accZs.last().toFloat(), resampleAcc.results.time)
+        val lastAccZ = accZs.last()
+        positivePeakDetector.update(lastAccZ.toFloat(), resampleAcc.results.time)
+        negativePeakDetector.update(-lastAccZ.toFloat(), resampleAcc.results.time)
     }
 
     fun updateData(
@@ -170,6 +191,7 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
         rawLastZ: Float,
         rawLastT: Long,
         interval: Long,
+        heuristicMode: Boolean,
     ) {
         result = TapClass.Others
         if (heuristicMode) {
@@ -231,7 +253,7 @@ open class TapRT(val context: Context, val sizeWindowNs: Long, val heuristicMode
         if (syncTime == 0L) {
             syncTime = rawLastT
             resampleAcc.resampledLastT = rawLastT
-            resampleGyro.resampledLastT = rawLastT
+            resampleGyro.resampledLastT = syncTime
             slopeAcc.init(resampleAcc.results.point)
             slopeGyro.init(resampleGyro.results.point)
             lowpassAcc.init(Point3f(0f, 0f, 0f))

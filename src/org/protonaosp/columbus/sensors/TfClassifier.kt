@@ -2,7 +2,6 @@ package org.protonaosp.columbus.sensors
 
 import android.content.res.AssetManager
 import java.io.FileInputStream
-import java.lang.reflect.Array
 import java.nio.channels.FileChannel
 import java.util.ArrayList
 import java.util.HashMap
@@ -12,7 +11,7 @@ import org.tensorflow.lite.Interpreter
 class TfClassifier(assetManager: AssetManager, assetFileName: String) {
 
     companion object {
-        private const val TAG = "columbus/TfClassifier"
+        private const val TAG = "Columbus/TfClassifier"
     }
 
     private var interpreter: Interpreter? = null
@@ -55,14 +54,15 @@ class TfClassifier(assetManager: AssetManager, assetFileName: String) {
             return ArrayList()
         }
 
-        if (tfliteOut.isEmpty()) {
-            dlog(TAG, "Result is empty")
+        if (tfliteOut.isNullOrEmpty()) {
+            dlog(TAG, "Result is invalid")
             return ArrayList()
         }
 
-        val tfliteContent = tfliteOut[0]
-        if (tfliteContent !is Array) {
-            dlog(TAG, "Result is not array")
+        @Suppress("UNCHECKED_CAST")
+        val tfliteContent = tfliteOut[0] as? Array<FloatArray>
+        if (tfliteContent == null) {
+            dlog(TAG, "Result content is invalid")
             return ArrayList()
         }
 
@@ -70,7 +70,7 @@ class TfClassifier(assetManager: AssetManager, assetFileName: String) {
             arrayListOf(
                 ArrayList<Float>().apply {
                     for (i in 0 until size) {
-                        add((tfliteContent as FloatArray)[i])
+                        add(tfliteContent[0][i])
                     }
                 }
             )
