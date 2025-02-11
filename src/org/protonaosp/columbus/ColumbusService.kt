@@ -306,7 +306,7 @@ class ColumbusService : Service(), SharedPreferences.OnSharedPreferenceChangeLis
     private fun blockingGate(): Boolean {
         for (it in gates) {
             if (it.isBlocking()) {
-                dlog(TAG, "Blocked by ${it.javaClass.simpleName}")
+                dlog(TAG, "Blocked by ${it::class.simpleName.orEmpty()} gate")
                 return true
             }
         }
