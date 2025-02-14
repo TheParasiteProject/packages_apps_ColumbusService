@@ -25,5 +25,6 @@ class ChargingState(context: Context, handler: Handler) : TransientGate(context,
 
     override fun onDeactivate() {
         context.unregisterReceiver(powerReceiver)
+        setBlocking(false)
     }
 }

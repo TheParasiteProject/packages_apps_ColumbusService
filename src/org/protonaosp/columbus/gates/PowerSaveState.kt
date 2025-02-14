@@ -42,5 +42,6 @@ class PowerSaveState(context: Context, handler: Handler) : Gate(context, handler
 
     override fun onDeactivate() {
         context.unregisterReceiver(powerReceiver)
+        setBlocking(false)
     }
 }

@@ -22,6 +22,7 @@ class ColumbusController(val context: Context, val sensor: ColumbusSensor, val h
             UsbState(context, handler),
             ScreenTouch(context, handler),
             SystemKeyPress(context, handler),
+            PowerState(context, handler),
         )
     private val softGateListener =
         object : Gate.Listener {

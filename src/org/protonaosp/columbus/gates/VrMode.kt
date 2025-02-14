@@ -56,5 +56,6 @@ class VrMode(context: Context, handler: Handler) : Gate(context, handler, 2) {
             }
         }
         inVrMode = false
+        setBlocking(false)
     }
 }
