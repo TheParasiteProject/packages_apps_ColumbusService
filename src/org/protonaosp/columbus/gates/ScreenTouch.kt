@@ -29,7 +29,6 @@ class ScreenTouch(context: Context, val handler: Handler) : Gate(context, handle
         }
     private var inputEventReceiver: InputChannelCompat.InputEventReceiver? = null
     private var inputMonitor: InputMonitorCompat? = null
-    private var isTouching: Boolean = false
     private val inputEventListener =
         object : InputChannelCompat.InputEventListener {
             override fun onInputEvent(ev: InputEvent) {
@@ -37,32 +36,20 @@ class ScreenTouch(context: Context, val handler: Handler) : Gate(context, handle
                     return
                 }
                 val motionEvent: MotionEvent = ev as? MotionEvent ?: return
-                when (motionEvent.action) {
+                when (motionEvent.actionMasked) {
                     MotionEvent.ACTION_DOWN -> {
                         if (touchRegion.contains(motionEvent.getRawX(), motionEvent.getRawY())) {
-                            isTouching = true
                             setBlocking(true)
                         }
                     }
                     MotionEvent.ACTION_MOVE -> {
-                        if (
-                            isTouching &&
-                                touchRegion.contains(motionEvent.getRawX(), motionEvent.getRawY())
-                        ) {
-                            setBlocking(true)
-                        } else if (isTouching) {
-                            isTouching = false
-                            handler.removeCallbacks(clearBlocking)
-                            handler.postDelayed(clearBlocking, GATE_DURATION)
-                        }
+                        setBlocking(true)
                     }
                     MotionEvent.ACTION_UP,
-                    MotionEvent.ACTION_CANCEL -> {
-                        if (isTouching) {
-                            isTouching = false
-                            handler.removeCallbacks(clearBlocking)
-                            handler.postDelayed(clearBlocking, GATE_DURATION)
-                        }
+                    MotionEvent.ACTION_CANCEL,
+                    MotionEvent.ACTION_OUTSIDE -> {
+                        handler.removeCallbacks(clearBlocking)
+                        handler.postDelayed(clearBlocking, GATE_DURATION)
                     }
                 }
             }
@@ -99,7 +86,6 @@ class ScreenTouch(context: Context, val handler: Handler) : Gate(context, handle
     }
 
     fun stopListeningForTouch() {
-        isTouching = false
         setBlocking(false)
         dispose()
         inputEventReceiver = null
