@@ -55,3 +55,5 @@ Default settings can be changed by overlaying [res/values/config.xml](https://gi
 ## License
 
 All code in this repository is licensed under the GPL-3.0 License.
+
+Copyright (C) 2024-2025 TheParasiteProject
