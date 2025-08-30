@@ -82,7 +82,7 @@ class ScreenTouch(context: Context, val handler: Handler) : Gate(context, handle
     }
 
     fun refreshStatus() {
-        if (powerManager.isInteractive()) {
+        if (powerManager.isInteractive) {
             startListeningForTouch()
         } else {
             stopListeningForTouch()
